@@ -12,26 +12,26 @@ jobs:
       PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:${{ github.workspace }}/android-sdk/build-tools/33.0.0:/usr/share/haxe:$PATH
 
     steps:
-    - name: Checkout Code
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install base dependencies (tar, zip, etc)
+    - name: Install required packages
       run: |
         sudo apt-get update
         sudo apt-get install -y tar zip wget unzip build-essential libneko2 neko
 
     - name: Set up Java 17
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
-        java-version: '17'
         distribution: 'temurin'
+        java-version: '17'
 
     - name: Set up Haxe 4.2.5
       uses: krdlab/setup-haxe@v1.5.0
       with:
         haxe-version: 4.2.5
 
-    - name: Set up haxelib (avoid ~/.haxelib error)
+    - name: Setup haxelib properly (avoid ~/.haxelib error)
       run: |
         mkdir -p ~/.haxelib_repo
         haxelib setup ~/.haxelib_repo
