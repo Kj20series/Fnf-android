@@ -11,7 +11,7 @@ jobs:
       ANDROID_SDK: /home/runner/android/sdk
       ANDROID_NDK_ROOT: /home/runner/android/ndk
       ANDROID_HOME: /home/runner/android/sdk
-      PATH: /home/runner/android/sdk/cmdline-tools/latest/bin:/home/runner/android/sdk/platform-tools:/home/runner/android/sdk/build-tools/33.0.0:${{ env.PATH }}
+      PATH: /home/runner/android/sdk/cmdline-tools/latest/bin:/home/runner/android/sdk/platform-tools:/home/runner/android/sdk/build-tools/33.0.0:/usr/local/bin:/usr/bin:/bin
 
     steps:
       - name: Checkout source code
@@ -77,8 +77,8 @@ jobs:
       - name: Lime Android Setup
         run: haxelib run lime setup android
         env:
-          ANDROID_SDK: ${{ env.ANDROID_SDK }}
-          ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_ROOT }}
+          ANDROID_SDK: /home/runner/android/sdk
+          ANDROID_NDK_ROOT: /home/runner/android/ndk
 
       - name: Build APK
         run: haxelib run lime build android -final -D NO_PRELOAD_ALL
