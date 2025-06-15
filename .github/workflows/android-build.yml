@@ -12,61 +12,60 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      JAVA_HOME: /opt/hostedtoolcache/jdk/17.0.15/x64
-      HAXE_STD_PATH: /opt/hostedtoolcache/haxe/4.2.5/x64/std
-      NEKOPATH: /opt/hostedtoolcache/neko/2.3.0/x64
+      JAVA_HOME: /opt/hostedtoolcache/jdk/17.0.11/x64
       ANDROID_HOME: /usr/local/lib/android/sdk
-      PATH: $PATH:/usr/local/lib/android/sdk/cmdline-tools/latest/bin:/usr/local/lib/android/sdk/platform-tools:/usr/local/lib/android/sdk/build-tools/33.0.0
+      PATH: $PATH:/usr/local/lib/android/sdk/platform-tools:/usr/local/lib/android/sdk/cmdline-tools/latest/bin:/usr/local/lib/android/sdk/build-tools/33.0.0
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2  # ✅ FIXED from v3 to v2
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Java 17
-      uses: actions/setup-java@v3
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-    - name: Set up Haxe
-      uses: krdlab/setup-haxe@v1.5.0
-      with:
-        haxe-version: 4.2.5
+      - name: Set up Haxe 4.2.5
+        uses: krdlab/setup-haxe@v1.5.0
+        with:
+          haxe-version: 4.2.5
 
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libneko2 neko build-essential git zip
-        haxelib setup ~/.haxelib
+      - name: Install Haxe libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libneko2 neko build-essential git zip
+          haxelib setup ~/.haxelib
+          haxelib install lime 8.0.2 --quiet
+          haxelib install openfl 9.2.2 --quiet
+          haxelib install flixel
+          haxelib install flixel-addons
+          haxelib install flixel-ui
+          haxelib install hscript
+          haxelib install hxcpp
+          haxelib install actuate
+          haxelib install tjson
+          haxelib install linc_stb
+          haxelib install linc_discord_rpc
+          haxelib install extension-androidtools
+          haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
+          haxelib run lime setup android
+          haxelib set lime 8.0.2
+          haxelib set openfl 9.2.2
 
-        haxelib install lime 7.9.0
-        haxelib install openfl 8.9.7
-        haxelib install flixel
-        haxelib install flixel-addons
-        haxelib install flixel-ui
-        haxelib install hscript
-        haxelib install hxcpp
-        haxelib install actuate
-        haxelib install tjson
-        haxelib install linc_stb
-        haxelib install linc_discord_rpc
-        haxelib install extension-androidtools
-        haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
+      - name: Accept Android SDK Licenses
+        run: yes | sdkmanager --licenses
 
-        haxelib set lime 7.9.0
-        haxelib set openfl 8.9.7
+      - name: Install Android SDK Packages
+        run: |
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-    - name: Set up Android SDK
-      run: |
-        yes | sdkmanager --licenses
-        sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+      - name: Build APK
+        run: |
+          haxelib run lime build android -final -D NO_PRELOAD_ALL
 
-    - name: Build APK
-      run: |
-        haxelib run lime build android -final -D NO_PRELOAD_ALL
-
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v2  # ✅ FIXED from v3 to v2
-      with:
-        name: psych-android-apk
-        path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
+      - name: Upload APK
+        uses: actions/upload-artifact@v3
+        with:
+          name: psych-android-apk
+          path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
