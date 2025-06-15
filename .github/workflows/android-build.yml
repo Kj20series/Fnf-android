@@ -30,42 +30,36 @@ jobs:
           sudo apt update
           sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip
 
-      - name: Set up Haxelib folder
-        run: haxelib setup /home/runner/haxelib
+      - name: Set up Haxelib
+        run: |
+          haxelib setup ~/haxelib
 
-      - name: Install core Haxelibs
+      - name: Install core haxelibs
         run: |
           haxelib install lime 7.9.0
           haxelib install openfl 8.9.7
-          haxelib install hxcpp
-          haxelib set lime 7.9.0
-          haxelib set openfl 8.9.7
-
-      - name: Install Flixel and addons
-        run: |
           haxelib install flixel
           haxelib install flixel-addons
           haxelib install flixel-ui
-          haxelib install actuate
-
-      - name: Install misc dependencies
-        run: |
           haxelib install hscript
+          haxelib install hxcpp
+          haxelib install actuate
           haxelib install tjson
-          haxelib install linc_stb
+          haxelib set lime 7.9.0
+          haxelib set openfl 8.9.7
+
+      - name: Install git haxelibs
+        run: |
+          haxelib git linc_stb https://github.com/larsiusprime/linc_stb.git
+          haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
           haxelib install extension-androidtools
 
-      - name: Install linc_luajit
-        run: haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
-
-      - name: Add SDK manager to PATH
-        run: echo "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/build-tools/33.0.0" >> $GITHUB_PATH
-
       - name: Accept Android licenses
-        run: yes | sdkmanager --licenses
+        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
-      - name: Install Android SDKs
-        run: sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+      - name: Install Android SDK packages
+        run: |
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
       - name: Build APK
         run: haxelib run lime build android -final -D NO_PRELOAD_ALL
