@@ -1,4 +1,4 @@
-name: Build Psych Engine Android
+name: Psych Engine Android Build
 
 on:
   workflow_dispatch:
@@ -10,57 +10,66 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: ✅ Checkout code
-      uses: actions/checkout@v4
+      - name: 📁 Checkout Code
+        uses: actions/checkout@v4
 
-    - name: 📦 Install Linux build tools (tar, unzip, etc)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y tar zip unzip wget libneko2 neko build-essential default-jdk
+      - name: 🛠 Install Dependencies (tar, zip, tools)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip tar zip libneko2 neko build-essential default-jdk wget
 
-    - name: ☕ Set up Java 17 (for Android)
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: ☕ Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-    - name: 🧪 Set up Haxe 4.2.5
-      uses: krdlab/setup-haxe@v1.5.0
-      with:
-        haxe-version: 4.2.5
+      - name: 🧪 Set up Haxe 4.2.5
+        uses: krdlab/setup-haxe@v1.5.0
+        with:
+          haxe-version: 4.2.5
 
-    - name: 📱 Set up Android SDK
-      run: |
-        sudo apt-get install -y android-sdk
-        echo "y" | sdkmanager --licenses || true
-        sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+      - name: 📲 Download and Set up Android Command Line Tools (sdkmanager)
+        run: |
+          mkdir -p "$HOME/android-sdk/cmdline-tools"
+          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
+          unzip tools.zip -d "$HOME/android-sdk/cmdline-tools"
+          mv "$HOME/android-sdk/cmdline-tools/cmdline-tools" "$HOME/android-sdk/cmdline-tools/latest"
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
-    - name: 📦 Install Haxe Libraries
-      run: |
-        haxelib setup ~/.haxelib
-        haxelib install lime 8.0.2
-        haxelib install openfl 9.2.2
-        haxelib install flixel
-        haxelib install flixel-addons
-        haxelib install flixel-ui
-        haxelib install hscript
-        haxelib install hxcpp
-        haxelib install actuate
-        haxelib install tjson
-        haxelib install linc_stb
-        haxelib install linc_discord_rpc
-        haxelib install extension-androidtools
-        haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
-        haxelib run lime setup android
-        haxelib set lime 8.0.2
-        haxelib set openfl 9.2.2
+      - name: ✅ Accept SDK Licenses & Install Build Tools
+        run: |
+          sdkmanager --sdk_root=$HOME/android-sdk --licenses || true
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-    - name: 🔨 Build APK
-      run: |
-        haxelib run lime build android -final -D NO_PRELOAD_ALL
+      - name: 📦 Install Haxe Libraries
+        run: |
+          haxelib setup ~/.haxelib
+          haxelib install lime 8.0.2
+          haxelib install openfl 9.2.2
+          haxelib install flixel
+          haxelib install flixel-addons
+          haxelib install flixel-ui
+          haxelib install hscript
+          haxelib install hxcpp
+          haxelib install actuate
+          haxelib install tjson
+          haxelib install linc_stb
+          haxelib install linc_discord_rpc
+          haxelib install extension-androidtools
+          haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
+          haxelib run lime setup android
+          haxelib set lime 8.0.2
+          haxelib set openfl 9.2.2
 
-    - name: 📤 Upload APK Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: PsychEngine-Android-APK
-        path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
+      - name: 🔨 Build APK
+        run: |
+          haxelib run lime build android -final -D NO_PRELOAD_ALL
+
+      - name: 📤 Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: psychengine-android
+          path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
