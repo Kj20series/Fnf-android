@@ -14,14 +14,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Set up dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y git wget unzip openjdk-17-jdk python3-dev
+
+          # Install Haxe 4.3.3
           wget https://github.com/HaxeFoundation/haxe/releases/download/4.3.3/haxe-4.3.3-linux64.tar.gz
-          tar -xf haxe-4.3.3-linux64.tar.gz
-          sudo mv haxe-4.3.3-linux64/* /usr/local/
-          mkdir -p ~/.haxelib && haxelib setup ~/.haxelib
+          tar -xzf haxe-4.3.3-linux64.tar.gz
+          sudo cp -r haxe_*/* /usr/local/
+          mkdir -p ~/.haxelib
+          haxelib setup ~/.haxelib
+
+          # Install required haxelibs
           haxelib install lime 8.0.2
           haxelib install openfl 9.2.1
           haxelib install flixel
@@ -31,16 +36,13 @@ jobs:
           haxelib install actuate
           haxelib install extension-webview
           haxelib install linc_luajit
-          haxelib run lime setup -y
 
       - name: Set up Android SDK
         run: |
           mkdir -p $HOME/android
           cd $HOME/android
           wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O tools.zip
-          unzip tools.zip -d cmdline-tools
-          mkdir -p cmdline-tools-temp
-          mv cmdline-tools/* cmdline-tools-temp/
+          unzip tools.zip -d cmdline-tools-temp
           mkdir -p cmdline-tools/latest
           mv cmdline-tools-temp/* cmdline-tools/latest/
           echo "ANDROID_SDK=$HOME/android" >> $GITHUB_ENV
@@ -50,12 +52,12 @@ jobs:
           $HOME/android/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android \
             "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;23.1.7779620"
 
-      - name: Set up Haxelib path and Android target
+      - name: Configure Haxelib
         run: |
           haxelib set lime 8.0.2
           haxelib set openfl 9.2.1
           yes | haxelib run lime setup android
 
-      - name: Build Android APK
+      - name: Build APK
         run: |
           haxelib run lime build android -final -D NO_PRELOAD_ALL
