@@ -8,10 +8,9 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ANDROID_SDK: /home/runner/android/sdk
-      ANDROID_NDK_ROOT: /home/runner/android/sdk/ndk/25.2.9519653
-      ANDROID_HOME: /home/runner/android/sdk
-      PATH: /home/runner/android/sdk/cmdline-tools/latest/bin:/home/runner/android/sdk/platform-tools:/home/runner/android/sdk/build-tools/33.0.0:/usr/local/bin:/usr/bin:/bin
+      ANDROID_HOME: ${{ github.workspace }}/android
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android
+      ANDROID_NDK_ROOT: ${{ github.workspace }}/android/ndk/25.2.9519653
 
     steps:
       - name: Checkout source code
@@ -26,7 +25,7 @@ jobs:
       - name: Set up Haxe
         uses: krdlab/setup-haxe@v1.5.0
         with:
-          haxe-version: 4.3.3
+          haxe-version: 4.2.5
 
       - name: Install Linux dependencies
         run: |
@@ -36,13 +35,16 @@ jobs:
       - name: Set up Haxelib
         run: haxelib setup ~/haxelib
 
-      - name: Install Required Haxelibs
+      - name: Install Haxelibs - Part 1
         run: |
-          haxelib install lime 8.1.2
-          haxelib install openfl 9.3.2
+          haxelib install lime 8.0.2
+          haxelib install openfl 9.1.0
           haxelib install flixel
           haxelib install flixel-addons
           haxelib install flixel-ui
+
+      - name: Install Haxelibs - Part 2
+        run: |
           haxelib install hscript
           haxelib install hxcpp
           haxelib install actuate
@@ -51,24 +53,32 @@ jobs:
           haxelib install extension-webview || echo "optional"
           haxelib install linc_luajit || echo "optional"
           haxelib install linc_stb || echo "optional"
-          haxelib set lime 8.1.2
-          haxelib set openfl 9.3.2
+          haxelib set lime 8.0.2
+          haxelib set openfl 9.1.0
 
       - name: Download and set up Android SDK + NDK
         run: |
           mkdir -p $ANDROID_HOME
           cd $ANDROID_HOME
           wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O tools.zip
-          unzip tools.zip -d cmdline-tools
-          mv cmdline-tools cmdline-tools/latest
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
+          unzip tools.zip -d temp
+          mkdir -p cmdline-tools/latest
+          mv temp/cmdline-tools/* cmdline-tools/latest/
+          yes | cmdline-tools/latest/bin/sdkmanager --licenses
+          cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
 
-      - name: Lime Android Setup
-        run: haxelib run lime setup android
+      - name: Set environment paths
+        run: |
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/build-tools/33.0.0" >> $GITHUB_PATH
 
       - name: Build APK
-        run: haxelib run lime build android -final -D NO_PRELOAD_ALL
+        run: |
+          mkdir -p ~/.PsychEngine/mods
+          mkdir -p ~/.PsychEngine/assets
+          haxelib run lime setup android --skip-android
+          haxelib run lime build android -final -D NO_PRELOAD_ALL
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
