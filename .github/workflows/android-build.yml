@@ -1,9 +1,6 @@
-name: Android Build
+name: Build Psych Engine Android
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
@@ -18,61 +15,61 @@ jobs:
       HAXELIB_ROOT: /home/runner/.haxelib
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Clone repo
+      run: |
+        git clone ${{ github.repositoryUrl }} project
+        cd project
+        git checkout ${{ github.ref_name }}
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: 17
+    - name: Setup Android SDK + NDK
+      run: |
+        mkdir -p $ANDROID_HOME/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O sdk.zip
+        unzip sdk.zip -d $ANDROID_HOME/cmdline-tools
+        mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/tools
+        yes | $ANDROID_HOME/cmdline-tools/tools/bin/sdkmanager --licenses
+        $ANDROID_HOME/cmdline-tools/tools/bin/sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;21.4.7075529"
+        mv $ANDROID_HOME/ndk/21.4.7075529 $ANDROID_NDK_ROOT
 
-      - name: Install Android SDK
-        run: |
-          mkdir -p $ANDROID_HOME/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip -O sdk.zip
-          unzip sdk.zip -d $ANDROID_HOME/cmdline-tools/tools
-          yes | $ANDROID_HOME/cmdline-tools/tools/bin/sdkmanager --licenses
-          $ANDROID_HOME/cmdline-tools/tools/bin/sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;21.4.7075529"
-          mv $ANDROID_HOME/ndk/21.4.7075529 $ANDROID_NDK_ROOT
+    - name: Install Haxe 4.3.3
+      run: |
+        mkdir -p ~/haxe-temp
+        wget https://github.com/HaxeFoundation/haxe/releases/download/4.3.3/haxe-4.3.3-linux64.tar.gz
+        tar -xzf haxe-4.3.3-linux64.tar.gz -C ~/haxe-temp
+        FOLDER=$(find ~/haxe-temp -maxdepth 1 -type d -name "haxe*" | head -n 1)
+        sudo cp $FOLDER/haxe /usr/local/bin/haxe
+        sudo cp $FOLDER/haxelib /usr/local/bin/haxelib
+        mkdir -p ~/.haxelib
+        haxelib setup ~/.haxelib
 
-      - name: Install Haxe 4.3.3
-        run: |
-          wget https://github.com/HaxeFoundation/haxe/releases/download/4.3.3/haxe-4.3.3-linux64.tar.gz
-          mkdir haxe-temp
-          tar -xzf haxe-4.3.3-linux64.tar.gz -C haxe-temp
-          folder=$(find haxe-temp -maxdepth 1 -type d -name "haxe*" | head -n 1)
-          sudo mkdir -p /opt/haxe
-          sudo cp "$folder"/haxe /opt/haxe/
-          sudo cp "$folder"/haxelib /opt/haxe/
-          echo "/opt/haxe" >> $GITHUB_PATH
-          echo 'export PATH="/opt/haxe:$PATH"' >> $GITHUB_ENV
+    - name: Install haxelibs (split for stability)
+      run: |
+        haxelib install lime 8.0.2
+        haxelib install openfl 9.2.2
+        haxelib install flixel
+        haxelib install flixel-addons
+        haxelib install flixel-ui
+        haxelib install hscript
+        haxelib install hxcpp
 
-      - name: Setup haxelib
-        run: |
-          mkdir -p ~/.haxelib
-          /opt/haxe/haxelib setup ~/.haxelib
+    - name: Install remaining haxelibs
+      run: |
+        haxelib install tjson
+        haxelib install linc_luajit
+        haxelib install extension-webview
 
-      - name: Install Haxelibs
-        run: |
-          haxelib install lime 8.0.2
-          haxelib install openfl 9.2.2
-          haxelib install flixel
-          haxelib install flixel-addons
-          haxelib install flixel-ui
-          haxelib install tjson
-          haxelib install hscript
-          haxelib install hxcpp
-          haxelib install linc_luajit
-          haxelib install extension-webview
-          haxelib run lime setup --skip-visual
+    - name: Setup Lime
+      run: |
+        haxelib run lime setup --skip-visual
+        haxelib run lime setup android
 
-      - name: Build APK
-        run: |
-          haxelib run lime build android -final -D MODS_ALLOWED -D NO_PRELOAD_ALL
+    - name: Build APK
+      run: |
+        cd project
+        haxelib run lime build android -final -D MODS_ALLOWED -D NO_PRELOAD_ALL
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
-        with:
-          name: psych-engine-apk
-          path: export/release/android/bin/app-release.apk
+    - name: Upload APK
+      uses: actions/upload-artifact@v2
+      with:
+        name: PsychEngine-APK
+        path: project/export/release/android/bin/app-release.apk
