@@ -55,7 +55,7 @@ jobs:
 
       - name: Install linc_luajit
         run: |
-          haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
+          haxelib install linc_luajit
 
       - name: Set library versions
         run: |
