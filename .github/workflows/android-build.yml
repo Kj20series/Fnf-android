@@ -8,8 +8,10 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ANDROID_SDK: ${{ github.workspace }}/android
-      ANDROID_NDK_ROOT: ${{ github.workspace }}/android/ndk
+      ANDROID_SDK: /home/runner/android/sdk
+      ANDROID_NDK_ROOT: /home/runner/android/ndk
+      ANDROID_HOME: /home/runner/android/sdk
+      PATH: /home/runner/android/sdk/cmdline-tools/latest/bin:/home/runner/android/sdk/platform-tools:/home/runner/android/sdk/build-tools/33.0.0:${{ env.PATH }}
 
     steps:
       - name: Checkout source code
@@ -29,7 +31,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip
+          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip wget
 
       - name: Set up Haxelib
         run: haxelib setup ~/haxelib
@@ -48,35 +50,35 @@ jobs:
           haxelib install hxcpp
           haxelib install actuate
           haxelib install tjson
-          haxelib install extension-androidtools
-          haxelib install extension-webview || echo "extension-webview missing, continuing..."
+          haxelib install extension-androidtools || echo "optional"
+          haxelib install extension-webview || echo "optional"
 
       - name: Set lime/openfl versions
         run: |
           haxelib set lime 7.9.0
           haxelib set openfl 8.9.7
 
-      - name: Install missing libs safely
+      - name: Try installing extra libraries
         run: |
-          haxelib install linc_luajit || echo "linc_luajit missing, continuing..."
-          haxelib install linc_stb || echo "linc_stb missing, continuing..."
+          haxelib install linc_stb || echo "linc_stb missing"
+          haxelib install linc_luajit || echo "linc_luajit missing"
 
-      - name: Install Android command-line tools
+      - name: Download and set up Android SDK/NDK
         run: |
-          mkdir -p $ANDROID_SDK
-          curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q cmdline-tools.zip -d $ANDROID_SDK/cmdline-tools-temp
-          mkdir -p $ANDROID_SDK/cmdline-tools/latest
-          mv $ANDROID_SDK/cmdline-tools-temp/cmdline-tools/* $ANDROID_SDK/cmdline-tools/latest
-          yes | $ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
-
-      - name: Set up NDK
-        run: |
-          mkdir -p $ANDROID_NDK_ROOT
-          cp -r $ANDROID_SDK/ndk/25.2.9519653/* $ANDROID_NDK_ROOT/
+          mkdir -p $HOME/android
+          cd $HOME/android
+          wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mkdir -p sdk/cmdline-tools/latest
+          mv cmdline-tools/* sdk/cmdline-tools/latest
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
 
       - name: Lime Android Setup
-        run: haxelib run lime setup android --skip-android --android-sdk $ANDROID_SDK --android-ndk $ANDROID_NDK_ROOT
+        run: haxelib run lime setup android
+        env:
+          ANDROID_SDK: ${{ env.ANDROID_SDK }}
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_ROOT }}
 
       - name: Build APK
         run: haxelib run lime build android -final -D NO_PRELOAD_ALL
