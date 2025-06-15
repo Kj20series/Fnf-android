@@ -64,8 +64,8 @@ jobs:
         run: |
           haxelib run lime build android -final -D NO_PRELOAD_ALL
 
-      - name: Upload APK
-        uses: actions/upload-artifact@v3
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: psych-android-apk
           path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
