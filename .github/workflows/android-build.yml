@@ -64,7 +64,7 @@ jobs:
           haxelib run lime build android
 
       - name: Upload APK Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: PsychEngine-Android-APK
           path: export/debug/android/bin/app/build/outputs/apk/debug/*.apk
