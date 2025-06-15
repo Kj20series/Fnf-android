@@ -1,75 +1,83 @@
-name: Psych Engine Android Build
+name: Build Psych Engine Android APK
 
 on:
   workflow_dispatch:
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      JAVA_HOME: /opt/hostedtoolcache/jdk/17.0.*/x64
+      HAXE_STD_PATH: /opt/hostedtoolcache/haxe/4.2.5/x64/std
+      NEKOPATH: /opt/hostedtoolcache/neko/2.3.0/x64
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      PATH: ${{ github.workspace }}/android-sdk/cmdline-tools/latest/bin:${{ github.workspace }}/android-sdk/platform-tools:${{ github.workspace }}/android-sdk/build-tools/33.0.0:$PATH
+
     steps:
-      - name: 📁 Checkout Code
-        uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: 🛠 Install Dependencies (tar, zip, tools)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip tar zip libneko2 neko build-essential default-jdk wget
+    - name: Set up Java 17
+      uses: actions/setup-java@v3
+      with:
+        java-version: '17'
+        distribution: 'temurin'
 
-      - name: ☕ Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
+    - name: Set up Haxe 4.2.5
+      uses: krdlab/setup-haxe@v1.5.0
+      with:
+        haxe-version: 4.2.5
 
-      - name: 🧪 Set up Haxe 4.2.5
-        uses: krdlab/setup-haxe@v1.5.0
-        with:
-          haxe-version: 4.2.5
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libneko2 neko build-essential zip wget tar
 
-      - name: 📲 Download and Set up Android Command Line Tools (sdkmanager)
-        run: |
-          mkdir -p "$HOME/android-sdk/cmdline-tools"
-          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
-          unzip tools.zip -d "$HOME/android-sdk/cmdline-tools"
-          mv "$HOME/android-sdk/cmdline-tools/cmdline-tools" "$HOME/android-sdk/cmdline-tools/latest"
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+    - name: Install Android SDK (manual fix)
+      run: |
+        mkdir -p "$ANDROID_HOME/cmdline-tools"
+        cd "$ANDROID_HOME/cmdline-tools"
+        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O tools.zip
+        unzip tools.zip
+        mv cmdline-tools latest
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-      - name: ✅ Accept SDK Licenses & Install Build Tools
-        run: |
-          sdkmanager --sdk_root=$HOME/android-sdk --licenses || true
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+    - name: Set up haxelib
+      run: |
+        mkdir -p ~/.haxelib_repo
+        haxelib setup ~/.haxelib_repo
 
-      - name: 📦 Install Haxe Libraries
-        run: |
-          haxelib setup ~/.haxelib
-          haxelib install lime 8.0.2
-          haxelib install openfl 9.2.2
-          haxelib install flixel
-          haxelib install flixel-addons
-          haxelib install flixel-ui
-          haxelib install hscript
-          haxelib install hxcpp
-          haxelib install actuate
-          haxelib install tjson
-          haxelib install linc_stb
-          haxelib install linc_discord_rpc
-          haxelib install extension-androidtools
-          haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
-          haxelib run lime setup android
-          haxelib set lime 8.0.2
-          haxelib set openfl 9.2.2
+    - name: Install haxelibs
+      run: |
+        haxelib install lime 8.0.2
+        haxelib install openfl 9.2.2
+        haxelib install flixel
+        haxelib install flixel-addons
+        haxelib install flixel-ui
+        haxelib install hscript
+        haxelib install hxcpp
+        haxelib install actuate
+        haxelib install tjson
+        haxelib install linc_stb
+        haxelib install linc_discord_rpc
+        haxelib install extension-androidtools
+        haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
+        haxelib run lime setup android
+        haxelib set lime 8.0.2
+        haxelib set openfl 9.2.2
 
-      - name: 🔨 Build APK
-        run: |
-          haxelib run lime build android -final -D NO_PRELOAD_ALL
+    - name: Build APK
+      run: |
+        haxelib run lime build android -final -D NO_PRELOAD_ALL
 
-      - name: 📤 Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: psychengine-android
-          path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: psych-android-apk
+        path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
