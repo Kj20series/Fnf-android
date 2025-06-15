@@ -1,74 +1,90 @@
-name: Android Psych Engine Build
+name: Build Android APK
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      ANDROID_HOME: ${{ github.workspace }}/android
-      ANDROID_SDK: ${{ github.workspace }}/android
-      ANDROID_NDK_ROOT: ${{ github.workspace }}/android/ndk
-      HAXEPATH: /usr/local/lib/haxe
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout source code
+        uses: actions/checkout@v4
 
-    - name: Setup Java JDK
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'temurin'
-        java-version: '17'
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
 
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y git wget unzip p7zip-full libncurses5 libstdc++6 libgtk-3-0 libglu1-mesa libxi-dev libxmu-dev libxtst-dev
-        wget https://github.com/HaxeFoundation/haxe/releases/download/4.3.4/haxe-4.3.4-linux64.tar.gz
-        tar -xf haxe-4.3.4-linux64.tar.gz
-        sudo mv haxe-4.3.4/* /usr/local/
-        sudo ln -s /usr/local/haxe /usr/local/bin/haxe
-        sudo ln -s /usr/local/haxelib /usr/local/bin/haxelib
+      - name: Set up Haxe
+        uses: krdlab/setup-haxe@v1.5.0
+        with:
+          haxe-version: 4.2.5
 
-    - name: Install haxelibs
-      run: |
-        haxelib setup $HAXEPATH/lib
-        haxelib install lime 8.0.2
-        haxelib install openfl 9.2.0
-        haxelib install flixel
-        haxelib install flixel-addons
-        haxelib install flixel-ui
-        haxelib install tjson
-        haxelib install hxcpp
-        haxelib run lime setup flixel --always
-        haxelib run lime setup android --skip-android
+      - name: Install Linux dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip
 
-    - name: Set up Android SDK
-      run: |
-        mkdir -p $ANDROID_HOME
-        cd $ANDROID_HOME
-        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdtools.zip
-        unzip cmdtools.zip
-        mkdir -p cmdline-tools/latest
-        mv cmdline-tools/* cmdline-tools/latest/
-        yes | cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;23.1.7779620"
+      - name: Set up Haxelib
+        run: haxelib setup ~/haxelib
 
-    - name: Set up NDK path
-      run: |
-        mkdir -p $ANDROID_NDK_ROOT
-        cp -r $ANDROID_HOME/ndk/23.1.7779620/* $ANDROID_NDK_ROOT
+      - name: Install Haxelibs (Part 1)
+        run: |
+          haxelib install lime 8.0.2
+          haxelib install openfl 9.2.0
+          haxelib install hxcpp
+          haxelib install actuate
+          haxelib install tjson
 
-    - name: Build Android APK
-      run: |
-        haxelib run lime build android -final -D MODS_ALLOWED
+      - name: Install Haxelibs (Part 2)
+        run: |
+          haxelib install flixel
+          haxelib install flixel-addons
+          haxelib install flixel-ui
+          haxelib install hscript
 
-    - name: Upload APK
-      uses: actions/upload-artifact@v3
-      with:
-        name: psych-engine-apk
-        path: export/release/android/bin/*.apk
+      - name: Install Haxelibs (Part 3)
+        run: |
+          haxelib install extension-androidtools
+          haxelib install linc_luajit
+          haxelib install linc_stb || echo "linc_stb missing, skipped"
+
+      - name: Set Haxelib versions
+        run: |
+          haxelib set lime 8.0.2
+          haxelib set openfl 9.2.0
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Fix Android SDK cmdline-tools
+        run: |
+          mkdir -p $HOME/android/cmdline-tools
+          mv $ANDROID_HOME/cmdline-tools $HOME/android/cmdline-tools/latest || true
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Install Android SDK components
+        run: sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3"
+
+      - name: Create mods folder if missing
+        run: mkdir -p assets/mods
+
+      - name: Set Android environment vars
+        run: |
+          echo "ANDROID_SDK=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_ROOT" >> $GITHUB_ENV
+
+      - name: Build APK
+        run: haxelib run lime build android -final -D NO_PRELOAD_ALL
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: psych-engine-apk
+          path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
