@@ -1,8 +1,6 @@
-name: Android Build
+name: Build Psych Engine Android
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -10,78 +8,65 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ANDROID_HOME: /opt/android
-      ANDROID_SDK_ROOT: /opt/android
-      ANDROID_NDK_ROOT: /opt/android/ndk
-      JAVA_HOME: /usr/lib/jvm/temurin-17-jdk-amd64
       HAXE_VERSION: 4.3.3
-      LIME_VERSION: 8.1.1
-      OPENFL_VERSION: 9.3.0
+      LIME_VERSION: 8.0.2
+      OPENFL_VERSION: 9.3.2
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+      ANDROID_NDK_ROOT: ${{ github.workspace }}/android-ndk
+      JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
 
     steps:
-    - name: Checkout repository
+    - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Set up Java
-      uses: actions/setup-java@v3
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-
-    - name: Install Haxe and Haxelib
+    - name: Install dependencies
       run: |
-        mkdir -p ~/haxe
-        wget -q https://github.com/HaxeFoundation/haxe/releases/download/4.3.3/haxe-4.3.3-linux64.tar.gz
-        tar -xzf haxe-4.3.3-linux64.tar.gz -C ~/haxe
-        echo "$HOME/haxe/haxe-4.3.3-linux64" >> $GITHUB_PATH
-        mkdir -p ~/.haxelib && echo '{}' > ~/.haxelib/haxelib.json
-        ln -s $HOME/haxe/haxe-4.3.3-linux64/haxelib /usr/local/bin/haxelib
+        sudo apt update
+        sudo apt install -y libneko0 neko libgc1c2 libgc-dev build-essential unzip default-jdk wget
 
-    - name: Install Core Haxe Libraries
+    - name: Set up Haxe
       run: |
+        mkdir -p /opt/haxe
+        wget -q https://github.com/HaxeFoundation/haxe/releases/download/${HAXE_VERSION}/haxe-${HAXE_VERSION}-linux64.tar.gz
+        tar -xzf haxe-${HAXE_VERSION}-linux64.tar.gz
+        sudo mv haxe-${HAXE_VERSION}-linux64/* /opt/haxe/
+        sudo ln -s /opt/haxe/haxe /usr/local/bin/haxe
+        sudo ln -s /opt/haxe/haxelib /usr/local/bin/haxelib
+
+    - name: Set up Android SDK & NDK
+      run: |
+        mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+        cd $ANDROID_SDK_ROOT/cmdline-tools
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip
+        unzip -q commandlinetools-linux-10406996_latest.zip
+        mv cmdline-tools latest
+        yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses
+        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;25.2.9519653"
+        mv $ANDROID_SDK_ROOT/ndk/25.2.9519653 $ANDROID_NDK_ROOT
+
+    - name: Install haxelibs
+      run: |
+        haxelib setup ~/haxelib
         haxelib install lime $LIME_VERSION
         haxelib install openfl $OPENFL_VERSION
-        haxelib install hxcpp
-        haxelib run lime setup -y
-
-    - name: Install Flixel and UI Libraries
-      run: |
         haxelib install flixel
+        haxelib install flixel-tools
         haxelib install flixel-addons
         haxelib install flixel-ui
-
-    - name: Install Game-Specific Libraries
-      run: |
         haxelib install hscript
+        haxelib install hxcpp
+        haxelib install tjson
+        haxelib install hxjsonast
+        haxelib install hxCodec
         haxelib install linc_luajit
         haxelib install extension-webview
         haxelib install actuate
 
-    - name: Install Miscellaneous Libraries
+    - name: Set haxelib dev paths (optional)
       run: |
-        haxelib install hxjsonast
-        haxelib install newgrounds
+        haxelib run lime setup
+        haxelib run lime setup android
 
-    - name: Configure Android SDK & NDK in Lime
-      run: |
-        haxelib run lime config ANDROID_SDK $ANDROID_HOME
-        haxelib run lime config ANDROID_NDK $ANDROID_NDK_ROOT
-
-    - name: Install Android SDK & NDK
-      run: |
-        mkdir -p $ANDROID_HOME/cmdline-tools
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O tools.zip
-        unzip tools.zip -d $ANDROID_HOME/cmdline-tools
-        mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME --licenses
-        $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_HOME "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;21.4.7075529"
-
-    - name: Set NDK and SDK Environment
-      run: |
-        echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/21.4.7075529" >> $GITHUB_ENV
-        echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
-        echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-
-    - name: Build Android APK
+    - name: Build APK
       run: |
         haxelib run lime build android -final -D NO_PRELOAD_ALL
