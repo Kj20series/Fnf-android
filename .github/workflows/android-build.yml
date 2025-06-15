@@ -7,11 +7,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      ANDROID_HOME: ${{ github.workspace }}/android
-      ANDROID_SDK_ROOT: ${{ github.workspace }}/android
-      ANDROID_NDK_ROOT: ${{ github.workspace }}/android/ndk/25.2.9519653
-
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -25,20 +20,20 @@ jobs:
       - name: Set up Haxe
         uses: krdlab/setup-haxe@v1.5.0
         with:
-          haxe-version: 4.2.5
+          haxe-version: 4.3.3
 
       - name: Install Linux dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip wget
+          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip
 
       - name: Set up Haxelib
         run: haxelib setup ~/haxelib
 
       - name: Install Haxelibs - Part 1
         run: |
-          haxelib install lime 8.0.2
-          haxelib install openfl 9.1.0
+          haxelib install lime 8.1.1
+          haxelib install openfl 9.3.2
           haxelib install flixel
           haxelib install flixel-addons
           haxelib install flixel-ui
@@ -49,34 +44,48 @@ jobs:
           haxelib install hxcpp
           haxelib install actuate
           haxelib install tjson
-          haxelib install extension-androidtools || echo "optional"
-          haxelib install extension-webview || echo "optional"
-          haxelib install linc_luajit || echo "optional"
-          haxelib install linc_stb || echo "optional"
-          haxelib set lime 8.0.2
-          haxelib set openfl 9.1.0
+          haxelib install extension-androidtools
+          haxelib install extension-webview || echo "webview not found"
+          haxelib install linc_luajit || echo "luajit not found"
+          haxelib install linc_stb || echo "linc_stb not found"
 
-      - name: Download and set up Android SDK + NDK
+      - name: Set lime/openfl versions
         run: |
-          mkdir -p $ANDROID_HOME
-          cd $ANDROID_HOME
-          wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O tools.zip
-          unzip tools.zip -d temp
-          mkdir -p cmdline-tools/latest
-          mv temp/cmdline-tools/* cmdline-tools/latest/
-          yes | cmdline-tools/latest/bin/sdkmanager --licenses
-          cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0" "ndk;25.2.9519653"
+          haxelib set lime 8.1.1
+          haxelib set openfl 9.3.2
 
-      - name: Set environment paths
+      - name: Download Android Command Line Tools
         run: |
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/build-tools/33.0.0" >> $GITHUB_PATH
+          mkdir -p $HOME/android/cmdline-tools
+          cd $HOME/android/cmdline-tools
+          curl -o commandlinetools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip commandlinetools.zip
+          rm commandlinetools.zip
+          mv cmdline-tools latest
+
+      - name: Set environment variables
+        run: |
+          echo "ANDROID_HOME=$HOME/android" >> $GITHUB_ENV
+          echo "ANDROID_SDK=$HOME/android" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$HOME/android/ndk-bundle" >> $GITHUB_ENV
+          echo "$HOME/android/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/android/platform-tools" >> $GITHUB_PATH
+          echo "$HOME/android/build-tools/34.0.0" >> $GITHUB_PATH
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Install Android SDK components
+        run: sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Build APK
         run: |
           mkdir -p ~/.PsychEngine/mods
           mkdir -p ~/.PsychEngine/assets
+
+          export ANDROID_SDK=$ANDROID_SDK
+          export ANDROID_NDK_ROOT=$ANDROID_NDK_ROOT
+
           haxelib run lime setup android --skip-android
           haxelib run lime build android -final -D NO_PRELOAD_ALL
 
