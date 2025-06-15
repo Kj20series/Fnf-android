@@ -16,13 +16,18 @@ jobs:
       JAVA_HOME: /usr/lib/jvm/java-11-openjdk-amd64
 
     steps:
-    - name: Checkout
+    - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install dependencies
+    - name: Install system packages
       run: |
-        sudo apt update
-        sudo apt install -y libneko0 neko libgc1c2 libgc-dev build-essential unzip default-jdk wget
+        sudo apt-get update
+        sudo apt-get install -y \
+          default-jdk \
+          build-essential \
+          libgc-dev \
+          unzip \
+          wget
 
     - name: Set up Haxe
       run: |
@@ -41,32 +46,63 @@ jobs:
         unzip -q commandlinetools-linux-10406996_latest.zip
         mv cmdline-tools latest
         yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT --licenses
-        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;25.2.9519653"
+        $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --sdk_root=$ANDROID_SDK_ROOT \
+          "platform-tools" \
+          "platforms;android-30" \
+          "build-tools;30.0.3" \
+          "ndk;25.2.9519653"
         mv $ANDROID_SDK_ROOT/ndk/25.2.9519653 $ANDROID_NDK_ROOT
 
-    - name: Install haxelibs
+    - name: haxelib setup
       run: |
         haxelib setup ~/haxelib
-        haxelib install lime $LIME_VERSION
-        haxelib install openfl $OPENFL_VERSION
-        haxelib install flixel
-        haxelib install flixel-tools
-        haxelib install flixel-addons
-        haxelib install flixel-ui
-        haxelib install hscript
-        haxelib install hxcpp
-        haxelib install tjson
-        haxelib install hxjsonast
-        haxelib install hxCodec
-        haxelib install linc_luajit
-        haxelib install extension-webview
-        haxelib install actuate
 
-    - name: Set haxelib dev paths (optional)
+    - name: Install lime
+      run: haxelib install lime $LIME_VERSION
+
+    - name: Install openfl
+      run: haxelib install openfl $OPENFL_VERSION
+
+    - name: Install flixel
+      run: haxelib install flixel
+
+    - name: Install flixel-tools
+      run: haxelib install flixel-tools
+
+    - name: Install flixel-addons
+      run: haxelib install flixel-addons
+
+    - name: Install flixel-ui
+      run: haxelib install flixel-ui
+
+    - name: Install hscript
+      run: haxelib install hscript
+
+    - name: Install hxcpp
+      run: haxelib install hxcpp
+
+    - name: Install tjson
+      run: haxelib install tjson
+
+    - name: Install hxjsonast
+      run: haxelib install hxjsonast
+
+    - name: Install hxCodec
+      run: haxelib install hxCodec
+
+    - name: Install linc_luajit
+      run: haxelib install linc_luajit
+
+    - name: Install extension-webview
+      run: haxelib install extension-webview
+
+    - name: Install actuate
+      run: haxelib install actuate
+
+    - name: Lime setup
       run: |
         haxelib run lime setup
         haxelib run lime setup android
 
     - name: Build APK
-      run: |
-        haxelib run lime build android -final -D NO_PRELOAD_ALL
+      run: haxelib run lime build android -final -D NO_PRELOAD_ALL
