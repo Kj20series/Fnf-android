@@ -9,7 +9,7 @@ jobs:
 
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
-      HAXELIB_ROOT: /home/runner/haxelib
+      PATH: /usr/local/lib/android/sdk/cmdline-tools/latest/bin:/usr/local/lib/android/sdk/platform-tools:/usr/local/lib/android/sdk/build-tools/33.0.0:${{ env.PATH }}
 
     steps:
       - name: Checkout source code
@@ -26,41 +26,36 @@ jobs:
         with:
           haxe-version: 4.2.5
 
-      - name: Install Linux dependencies
+      - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip
+          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip curl
 
-      - name: Set up haxelib path
+      - name: Install Haxelibs
         run: |
-          mkdir -p $HAXELIB_ROOT
-          haxelib setup $HAXELIB_ROOT
-
-      - name: Install Haxelibs (Part 1)
-        run: |
-          haxelib install lime 7.7.0
+          haxelib setup ~/haxelib
+          haxelib install lime 7.9.0
           haxelib install openfl 8.9.7
           haxelib install flixel
           haxelib install flixel-addons
           haxelib install flixel-ui
-
-      - name: Install Haxelibs (Part 2)
-        run: |
           haxelib install hscript
           haxelib install hxcpp
           haxelib install actuate
           haxelib install tjson
-          haxelib install extension-androidtools
           haxelib install extension-webview
-
-      - name: Install linc_luajit
-        run: |
+          haxelib install extension-androidtools
           haxelib install linc_luajit
-
-      - name: Set library versions
-        run: |
-          haxelib set lime 7.7.0
+          haxelib set lime 7.9.0
           haxelib set openfl 8.9.7
+
+      - name: Install Android Command Line Tools
+        run: |
+          mkdir -p $ANDROID_HOME/cmdline-tools
+          cd $ANDROID_HOME/cmdline-tools
+          curl -o cmdline-tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip cmdline-tools.zip -d latest
+          rm cmdline-tools.zip
 
       - name: Accept Android SDK licenses
         run: yes | sdkmanager --licenses
