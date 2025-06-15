@@ -7,6 +7,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -25,38 +28,44 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential neko libneko2 zip unzip tar openjdk-17-jdk wget
+          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip
 
-      - name: Set up Android SDK manually
-        run: |
-          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip
-          mkdir -p $HOME/android-sdk/cmdline-tools/latest
-          mv cmdline-tools/* $HOME/android-sdk/cmdline-tools/latest/
-          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-          echo "$HOME/android-sdk/build-tools/33.0.0" >> $GITHUB_PATH
-          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+      - name: Set up Haxelib folder
+        run: haxelib setup /home/runner/haxelib
 
-      - name: Install Haxelibs
+      - name: Install core Haxelibs
         run: |
-          haxelib setup ~/haxelib
           haxelib install lime 7.9.0
           haxelib install openfl 8.9.7
+          haxelib install hxcpp
+          haxelib set lime 7.9.0
+          haxelib set openfl 8.9.7
+
+      - name: Install Flixel and addons
+        run: |
           haxelib install flixel
           haxelib install flixel-addons
           haxelib install flixel-ui
-          haxelib install hscript
-          haxelib install hxcpp
           haxelib install actuate
+
+      - name: Install misc dependencies
+        run: |
+          haxelib install hscript
           haxelib install tjson
           haxelib install linc_stb
           haxelib install extension-androidtools
-          haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
-          haxelib set lime 7.9.0
-          haxelib set openfl 8.9.7
+
+      - name: Install linc_luajit
+        run: haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
+
+      - name: Add SDK manager to PATH
+        run: echo "${ANDROID_HOME}/cmdline-tools/latest/bin:${ANDROID_HOME}/platform-tools:${ANDROID_HOME}/build-tools/33.0.0" >> $GITHUB_PATH
+
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses
+
+      - name: Install Android SDKs
+        run: sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
       - name: Build APK
         run: haxelib run lime build android -final -D NO_PRELOAD_ALL
