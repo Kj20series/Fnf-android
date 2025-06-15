@@ -1,6 +1,8 @@
-name: Build Android APK
+name: Android Build
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -8,83 +10,65 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+    - name: Checkout Code
+      uses: actions/checkout@v4
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
+    - name: Set up Java 17
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'temurin'
+        java-version: 17
 
-      - name: Set up Haxe
-        uses: krdlab/setup-haxe@v1.5.0
-        with:
-          haxe-version: 4.2.5
+    - name: Install Haxe
+      uses: krdlab/setup-haxe@v1.5.0
+      with:
+        haxe-version: 4.3.3
 
-      - name: Install Linux dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip
+    - name: Install Haxelibs
+      run: |
+        haxelib install lime 8.0.2
+        haxelib install openfl 9.2.0
+        haxelib install flixel
+        haxelib install flixel-addons
+        haxelib install flixel-ui
+        haxelib install hxcpp
+        haxelib install tjson
+        haxelib install hxjsonast
+        haxelib install linc_luajit
+        haxelib install actuate
+        haxelib install hscript
+        haxelib install extension-androidtools
+        haxelib run lime setup
 
-      - name: Set up Haxelib
-        run: haxelib setup ~/haxelib
+    - name: Set up Android SDK (cmdline-tools)
+      run: |
+        mkdir -p $HOME/android-sdk/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip commandlinetools-linux-11076708_latest.zip -d $HOME/android-sdk/cmdline-tools
+        mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
 
-      - name: Install Haxelibs (Part 1)
-        run: |
-          haxelib install lime 8.0.2
-          haxelib install openfl 9.2.0
-          haxelib install hxcpp
-          haxelib install actuate
-          haxelib install tjson
+    - name: Configure Environment Variables
+      run: |
+        echo "ANDROID_SDK=$HOME/android-sdk" >> $GITHUB_ENV
+        echo "ANDROID_NDK_ROOT=$HOME/android-sdk/ndk-bundle" >> $GITHUB_ENV
+        echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+        echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
 
-      - name: Install Haxelibs (Part 2)
-        run: |
-          haxelib install flixel
-          haxelib install flixel-addons
-          haxelib install flixel-ui
-          haxelib install hscript
+    - name: Accept Android Licenses
+      run: yes | sdkmanager --licenses
 
-      - name: Install Haxelibs (Part 3)
-        run: |
-          haxelib install extension-androidtools
-          haxelib install linc_luajit
-          haxelib install linc_stb || echo "linc_stb missing, skipped"
+    - name: Install Android SDK Components
+      run: |
+        sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;21.3.6528147"
 
-      - name: Set Haxelib versions
-        run: |
-          haxelib set lime 8.0.2
-          haxelib set openfl 9.2.0
+    - name: Setup Lime for Android
+      run: haxelib run lime setup android
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+    - name: Build Android APK
+      run: haxelib run lime build android -final -D NO_PRELOAD_ALL
 
-      - name: Fix Android SDK cmdline-tools
-        run: |
-          mkdir -p $HOME/android/cmdline-tools
-          mv $ANDROID_HOME/cmdline-tools $HOME/android/cmdline-tools/latest || true
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses
-
-      - name: Install Android SDK components
-        run: sdkmanager "platform-tools" "platforms;android-30" "build-tools;30.0.3"
-
-      - name: Create mods folder if missing
-        run: mkdir -p assets/mods
-
-      - name: Set Android environment vars
-        run: |
-          echo "ANDROID_SDK=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_NDK_ROOT=$ANDROID_NDK_ROOT" >> $GITHUB_ENV
-
-      - name: Build APK
-        run: haxelib run lime build android -final -D NO_PRELOAD_ALL
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: psych-engine-apk
-          path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: PsychEngine-Android
+        path: export/release/android/bin/app/build/outputs/apk/debug/app-debug.apk
