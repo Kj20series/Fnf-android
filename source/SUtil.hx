@@ -9,6 +9,7 @@ import lime.app.Application;
 import openfl.events.UncaughtErrorEvent;
 import openfl.utils.Assets as OpenFlAssets;
 import openfl.Lib;
+import openfl.system.System;
 import haxe.CallStack.StackItem;
 import haxe.CallStack;
 import haxe.io.Path;
@@ -46,13 +47,15 @@ class SUtil
 		if (!Permissions.getGrantedPermissions().contains(PermissionsList.READ_EXTERNAL_STORAGE) || !Permissions.getGrantedPermissions().contains(PermissionsList.WRITE_EXTERNAL_STORAGE))
 		{
 			Permissions.requestPermissions([PermissionsList.READ_EXTERNAL_STORAGE, PermissionsList.WRITE_EXTERNAL_STORAGE]);
-			SUtil.applicationAlert('Permissions', "if you accepted the permissions all good if not expect a crash" + '\n' + 'Press Ok to see what happens');//shitty way to stop the app
+			SUtil.applicationAlert('Permissions', "If you accepted the permissions, all good. If not, expect a crash.\nPress OK to see what happens.");
 		}
 
 		if (Permissions.getGrantedPermissions().contains(PermissionsList.READ_EXTERNAL_STORAGE) || Permissions.getGrantedPermissions().contains(PermissionsList.WRITE_EXTERNAL_STORAGE))
 		{
-			if (!FileSystem.exists(Tools.getExternalStorageDirectory() + '/' + '.' + Application.current.meta.get('file') + '/'))
-				FileSystem.createDirectory(Tools.getExternalStorageDirectory() + '/' + '.' + Application.current.meta.get('file') + '/');
+			final basePath = Tools.getExternalStorageDirectory() + '/' + '.' + Application.current.meta.get('file') + '/';
+
+			if (!FileSystem.exists(basePath))
+				FileSystem.createDirectory(basePath);
 
 			if (!FileSystem.exists(SUtil.getPath() + 'assets/') && !FileSystem.exists(SUtil.getPath() + 'mods/'))
 			{
@@ -85,12 +88,14 @@ class SUtil
 	static function onCrash(e:UncaughtErrorEvent):Void
 	{
 		var errMsg:String = "";
-		var path:String;
+		var path:String = '';
+
 		var callStack:Array<StackItem> = CallStack.exceptionStack(true);
 		var dateNow:String = Date.now().toString();
 
-		dateNow = dateNow.replace(" ", "_");
-		dateNow = dateNow.replace(":", "'");
+		dateNow = dateNow.replace(" ", "_").replace(":", "'");
+
+		path = getPath() + "crash/crash_" + dateNow + ".txt";
 
 		for (stackItem in callStack)
 		{
@@ -104,6 +109,7 @@ class SUtil
 		}
 
 		errMsg += "\nUncaught Error: " + e.error;
+
 		#if MODS_ALLOWED
 		if (!FileSystem.exists(SUtil.getPath() + "crash/"))
 			FileSystem.createDirectory(SUtil.getPath() + "crash/");
@@ -132,21 +138,20 @@ class SUtil
 	public static function saveContent(fileName:String = 'file', fileExtension:String = '.json', fileData:String = 'you forgot something to add in your code')
 	{
 		#if (android && MODS_ALLOWED)
-                if (!FileSystem.exists(SUtil.getPath() + "saves")){
-                        FileSystem.createDirectory(SUtil.getPath() + "saves");
-                }
+		if (!FileSystem.exists(SUtil.getPath() + "saves"))
+			FileSystem.createDirectory(SUtil.getPath() + "saves");
 
-                File.saveContent(SUtil.getPath() + "saves/" + fileName + fileExtension, fileData);
-                SUtil.applicationAlert("Done Action :)", "File Saved Successfully!");
-                #elseif android
-                openfl.system.System.setClipboard(fileData);
-                SUtil.applicationAlert("Done Action :)", "Data Saved to Clipboard Successfully!");
-                #end
+		File.saveContent(SUtil.getPath() + "saves/" + fileName + fileExtension, fileData);
+		SUtil.applicationAlert("Done Action :)", "File Saved Successfully!");
+		#else
+		System.setClipboard(fileData);
+		SUtil.applicationAlert("Done Action :)", "Data Saved to Clipboard Successfully!");
+		#end
 	}
 
 	public static function saveClipboard(fileData:String = 'you forgot something to add in your code')
 	{
-		openfl.system.System.setClipboard(fileData);
+		System.setClipboard(fileData);
 		SUtil.applicationAlert('Done!', 'Data Saved to Clipboard Successfully!');
 	}
 
