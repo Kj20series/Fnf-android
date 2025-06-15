@@ -14,25 +14,30 @@ jobs:
       ANDROID_SDK: /home/runner/android
       ANDROID_NDK_ROOT: /home/runner/android/ndk
       ANDROID_HOME: /home/runner/android
+      HAXEPATH: /opt/haxe
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    - name: Install dependencies
+    - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y git wget unzip openjdk-17-jdk python3-dev
 
-        # Install Haxe 4.3.3
+    - name: Install Haxe 4.3.3
+      run: |
         wget https://github.com/HaxeFoundation/haxe/releases/download/4.3.3/haxe-4.3.3-linux64.tar.gz
-        mkdir haxe-install
-        tar -xzf haxe-4.3.3-linux64.tar.gz -C haxe-install
+        mkdir haxe-temp
+        tar -xzf haxe-4.3.3-linux64.tar.gz -C haxe-temp
         sudo mkdir -p /opt/haxe
-        sudo cp -r haxe-install/* /opt/haxe/
+        sudo cp haxe-temp/haxe-4.3.3-linux64/haxe /opt/haxe/
+        sudo cp haxe-temp/haxe-4.3.3-linux64/haxelib /opt/haxe/
         echo "/opt/haxe" >> $GITHUB_PATH
-        echo "HAXEPATH=/opt/haxe" >> $GITHUB_ENV
         echo 'export PATH="/opt/haxe:$PATH"' >> $GITHUB_ENV
+
+    - name: Setup haxelib
+      run: |
         mkdir -p ~/.haxelib
         /opt/haxe/haxelib setup ~/.haxelib
 
@@ -50,7 +55,7 @@ jobs:
         haxelib install extension-webview
         haxelib run lime setup -y
 
-    - name: Set up Android SDK & NDK
+    - name: Install Android SDK & NDK
       run: |
         mkdir -p $ANDROID_SDK/cmdline-tools
         wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O cmdline-tools.zip
@@ -58,7 +63,8 @@ jobs:
         mv $ANDROID_SDK/cmdline-tools/cmdline-tools $ANDROID_SDK/cmdline-tools/latest
 
         yes | $ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager --sdk_root=${ANDROID_SDK} --licenses
-        $ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager --sdk_root=${ANDROID_SDK} "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;21.4.7075529"
+        $ANDROID_SDK/cmdline-tools/latest/bin/sdkmanager --sdk_root=${ANDROID_SDK} \
+          "platform-tools" "platforms;android-30" "build-tools;30.0.3" "ndk;21.4.7075529"
 
         mv $ANDROID_SDK/ndk/21.4.7075529 $ANDROID_NDK_ROOT
 
