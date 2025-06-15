@@ -7,10 +7,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      PATH: /usr/local/lib/android/sdk/cmdline-tools/latest/bin:/usr/local/lib/android/sdk/platform-tools:/usr/local/lib/android/sdk/build-tools/33.0.0:${{ env.PATH }}
-
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -29,7 +25,20 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip
+          sudo apt install -y build-essential neko libneko2 zip unzip tar openjdk-17-jdk wget
+
+      - name: Set up Android SDK manually
+        run: |
+          wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mkdir -p $HOME/android-sdk/cmdline-tools/latest
+          mv cmdline-tools/* $HOME/android-sdk/cmdline-tools/latest/
+          echo "export ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/build-tools/33.0.0" >> $GITHUB_PATH
+          yes | $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+          $HOME/android-sdk/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
       - name: Install Haxelibs
         run: |
@@ -48,12 +57,6 @@ jobs:
           haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
           haxelib set lime 7.9.0
           haxelib set openfl 8.9.7
-
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses
-
-      - name: Install Android SDKs
-        run: sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
       - name: Build APK
         run: haxelib run lime build android -final -D NO_PRELOAD_ALL
