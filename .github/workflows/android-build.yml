@@ -22,8 +22,10 @@ jobs:
         with:
           java-version: 11
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+      - name: Manually Install Android SDK Packages
+        run: |
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2" "ndk;21.4.7075529"
 
       - name: Setup Haxe
         uses: krdlab/setup-haxe@v1.1.5
