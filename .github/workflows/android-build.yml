@@ -1,71 +1,66 @@
-name: Build Psych Engine Android APK
+name: Build Psych Engine Android
 
 on:
   workflow_dispatch:
   push:
-    branches: [ main ]
-  pull_request:
     branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
-    env:
-      JAVA_HOME: /opt/hostedtoolcache/jdk/17.0.11/x64
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      PATH: $PATH:/usr/local/lib/android/sdk/platform-tools:/usr/local/lib/android/sdk/cmdline-tools/latest/bin:/usr/local/lib/android/sdk/build-tools/33.0.0
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: ✅ Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
+    - name: 📦 Install Linux build tools (tar, unzip, etc)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y tar zip unzip wget libneko2 neko build-essential default-jdk
 
-      - name: Set up Haxe 4.2.5
-        uses: krdlab/setup-haxe@v1.5.0
-        with:
-          haxe-version: 4.2.5
+    - name: ☕ Set up Java 17 (for Android)
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
 
-      - name: Install Haxe libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libneko2 neko build-essential git zip
-          haxelib setup ~/.haxelib
-          haxelib install lime 8.0.2 --quiet
-          haxelib install openfl 9.2.2 --quiet
-          haxelib install flixel
-          haxelib install flixel-addons
-          haxelib install flixel-ui
-          haxelib install hscript
-          haxelib install hxcpp
-          haxelib install actuate
-          haxelib install tjson
-          haxelib install linc_stb
-          haxelib install linc_discord_rpc
-          haxelib install extension-androidtools
-          haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
-          haxelib run lime setup android
-          haxelib set lime 8.0.2
-          haxelib set openfl 9.2.2
+    - name: 🧪 Set up Haxe 4.2.5
+      uses: krdlab/setup-haxe@v1.5.0
+      with:
+        haxe-version: 4.2.5
 
-      - name: Accept Android SDK Licenses
-        run: yes | sdkmanager --licenses
+    - name: 📱 Set up Android SDK
+      run: |
+        sudo apt-get install -y android-sdk
+        echo "y" | sdkmanager --licenses || true
+        sdkmanager --install "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-      - name: Install Android SDK Packages
-        run: |
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+    - name: 📦 Install Haxe Libraries
+      run: |
+        haxelib setup ~/.haxelib
+        haxelib install lime 8.0.2
+        haxelib install openfl 9.2.2
+        haxelib install flixel
+        haxelib install flixel-addons
+        haxelib install flixel-ui
+        haxelib install hscript
+        haxelib install hxcpp
+        haxelib install actuate
+        haxelib install tjson
+        haxelib install linc_stb
+        haxelib install linc_discord_rpc
+        haxelib install extension-androidtools
+        haxelib git linc_luajit https://github.com/sirox228/linc_luajit.git
+        haxelib run lime setup android
+        haxelib set lime 8.0.2
+        haxelib set openfl 9.2.2
 
-      - name: Build APK
-        run: |
-          haxelib run lime build android -final -D NO_PRELOAD_ALL
+    - name: 🔨 Build APK
+      run: |
+        haxelib run lime build android -final -D NO_PRELOAD_ALL
 
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: psych-android-apk
-          path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
+    - name: 📤 Upload APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: PsychEngine-Android-APK
+        path: export/release/android/bin/app/build/outputs/apk/release/app-release.apk
