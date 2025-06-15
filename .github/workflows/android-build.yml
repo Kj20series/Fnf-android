@@ -25,7 +25,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt update
-          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip curl
+          sudo apt install -y build-essential neko libneko2 zip tar default-jdk unzip
 
       - name: Set up Haxelib
         run: haxelib setup ~/haxelib
@@ -45,36 +45,29 @@ jobs:
           haxelib install actuate
           haxelib install tjson
           haxelib install extension-androidtools
+          haxelib install extension-webview || echo "extension-webview missing, continuing..."
 
       - name: Set lime/openfl versions
         run: |
           haxelib set lime 7.9.0
           haxelib set openfl 8.9.7
 
-      - name: Install missing libs manually
+      - name: Install missing libs safely
         run: |
-          haxelib install linc_luajit || echo "linc_luajit not found, continuing..."
-          haxelib install linc_stb || echo "linc_stb not found, continuing..."
-          haxelib install extension-webview || echo "extension-webview not found, continuing..."
+          haxelib install linc_luajit || echo "linc_luajit missing, continuing..."
+          haxelib install linc_stb || echo "linc_stb missing, continuing..."
 
       - name: Install Android command-line tools manually
         run: |
           mkdir -p $HOME/android
           curl -o cmd.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q cmd.zip -d $HOME/android/
+          unzip -q cmd.zip -d $HOME/android/cmdline-tools-temp
           mkdir -p $HOME/android/cmdline-tools/latest
-          mv $HOME/android/cmdline-tools/* $HOME/android/cmdline-tools/latest/
-          echo "y" | $HOME/android/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android "platform-tools" "platforms;android-33" "build-tools;33.0.0"
+          mv $HOME/android/cmdline-tools-temp/cmdline-tools/* $HOME/android/cmdline-tools/latest/
+          yes | $HOME/android/cmdline-tools/latest/bin/sdkmanager --sdk_root=$HOME/android "platform-tools" "platforms;android-33" "build-tools;33.0.0"
 
-      - name: Debug SDK layout
-        run: |
-          echo "Listing Android SDK structure..."
-          ls -R $HOME/android
-          echo "Checking build-tools:"
-          ls $HOME/android/build-tools || echo "build-tools folder missing"
-
-      - name: Run Lime Android Setup
-        run: haxelib run lime setup android
+      - name: Setup Android for Lime
+        run: haxelib run lime setup android --skip-ndk
 
       - name: Build APK
         run: haxelib run lime build android -final -D NO_PRELOAD_ALL
